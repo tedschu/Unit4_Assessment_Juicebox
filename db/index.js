@@ -1,5 +1,7 @@
 const { Client } = require("pg"); // imports the pg module
 const bcrypt = require("bcrypt"); // imports bcrypt for passwords
+const jwt = require("jsonwebtoken");
+const { response } = require("express");
 
 const client = new Client({
   connectionString:
@@ -10,30 +12,13 @@ const client = new Client({
       : undefined,
 });
 
+const JWT_SECRET = "secret";
+
 /**
  * USER Methods
  */
 
-// async function createUser({ username, password, name, location }) {
-//   try {
-//     const {
-//       rows: [user],
-//     } = await client.query(
-//       `
-//       INSERT INTO users(username, password, name, location)
-//       VALUES($1, $2, $3, $4)
-//       ON CONFLICT (username) DO NOTHING
-//       RETURNING *;
-//     `,
-//       [username, password, name, location]
-//     );
-
-//     return user;
-//   } catch (error) {
-//     throw error;
-//   }
-// }
-
+// (works) Creates a user
 async function createUser({ username, password, name, location }) {
   const hashPassword = await bcrypt.hash(password, 5);
 
@@ -52,6 +37,25 @@ async function createUser({ username, password, name, location }) {
     throw error;
   }
 }
+
+// (works) Calls createUser to create user/pass AND THEN generates a token. User and token are then returned.
+const createUserAndGenerateToken = async ({
+  username,
+  password,
+  name,
+  location,
+}) => {
+  const user = await createUser({ username, password, name, location });
+  const token = await jwt.sign(
+    { id: user.id, username: user.username },
+    JWT_SECRET
+  );
+  console.log("This is the token: ", token);
+  return {
+    user,
+    token,
+  };
+};
 
 async function updateUser(id, fields = {}) {
   // build the set string
@@ -121,54 +125,87 @@ async function getUserById(userId) {
   }
 }
 
-async function getUserByUsername(username) {
-  try {
-    const {
-      rows: [user],
-    } = await client.query(
-      `
-      SELECT *
+// (works) for login
+async function authenticateLogin({ username, password }) {
+  const response = await client.query(
+    `SELECT *
       FROM users
       WHERE username=$1
     `,
-      [username]
-    );
+    [username]
+  );
+  // console.log("pass from database: ", response.rows[0].password);
+  // console.log("pass from header: ", password);
 
-    if (!user) {
-      throw {
-        name: "UserNotFoundError",
-        message: "A user with that username does not exist",
-      };
-    }
+  if (
+    !response.rows.length ||
+    (await bcrypt.compare(password, response.rows[0].password)) === false
+  ) {
+    throw {
+      name: "UserNotFoundError",
+      message: "A user with that username does not exist",
+    };
+  }
 
-    return user;
-  } catch (error) {
+  const token = await jwt.sign({ id: response.rows[0].id }, JWT_SECRET);
+
+  return {
+    user: response.rows[0],
+    token,
+  };
+}
+
+// (works) Finds if a token is associated with a user (called in utils.js > requireUser)
+const findUserWithToken = async (token) => {
+  let id;
+  try {
+    const payload = await jwt.verify(token, JWT_SECRET);
+    id = payload.id;
+  } catch (ex) {
+    const error = Error("not an authorized user");
+    error.status = 401;
     throw error;
   }
-}
+  const response = await client.query(
+    `SELECT id, username FROM users WHERE id=$1`,
+    [id]
+  );
+  if (!response.rows.length) {
+    const error = Error("user not authorized");
+    error.status = 401;
+    throw error;
+  }
+  return response.rows[0];
+};
 
 /**
  * POST Methods
  */
 
+//(Works) creates a post and returns the object (needs to add tags as well)
 async function createPost({ authorId, title, content, tags = [] }) {
   try {
-    const {
-      rows: [post],
-    } = await client.query(
-      `
-      INSERT INTO posts("authorId", title, content) 
+    const response = await client.query(
+      `INSERT INTO posts("authorId", title, content) 
       VALUES($1, $2, $3)
-      RETURNING *;
-    `,
+      RETURNING *`,
       [authorId, title, content]
     );
 
+    // (works) takes the array of tags from body and creates entries in tags table,
+    //returning the tags as objects
     const tagList = await createTags(tags);
 
-    return await addTagsToPost(post.id, tagList);
+    // (works) Uses the response (post id) AND array of tag objects to add to post_tags table
+    addTagsToPost(response.rows[0].id, tagList);
+
+    return {
+      post: response.rows[0],
+      tags,
+    };
   } catch (error) {
-    throw error;
+    // throw error;
+    console.error(error);
   }
 }
 
@@ -404,6 +441,7 @@ async function addTagsToPost(postId, tagList) {
   }
 }
 
+// (works)
 async function getAllTags() {
   try {
     const { rows } = await client.query(`
@@ -423,7 +461,7 @@ module.exports = {
   updateUser,
   getAllUsers,
   getUserById,
-  getUserByUsername,
+  authenticateLogin,
   getPostById,
   createPost,
   updatePost,
@@ -434,4 +472,6 @@ module.exports = {
   getAllTags,
   createPostTag,
   addTagsToPost,
+  findUserWithToken,
+  createUserAndGenerateToken,
 };

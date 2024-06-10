@@ -1,98 +1,88 @@
-const express = require('express');
+const express = require("express");
 const usersRouter = express.Router();
+const bcrypt = require("bcrypt"); // imports bcrypt for passwords
 
-const { 
-  createUser,
+//const { requireUser } = require("./utils");
+
+const {
   getAllUsers,
-  getUserByUsername,
-} = require('../db');
+  authenticateLogin,
+  createUserAndGenerateToken,
+} = require("../db");
 
-const jwt = require('jsonwebtoken');
+const jwt = require("jsonwebtoken");
+const JWT_SECRET = "secret";
 
-usersRouter.get('/', async (req, res, next) => {
+// (works) gets all users, returning user objects
+usersRouter.get("/", async (req, res, next) => {
   try {
     const users = await getAllUsers();
-  
+
     res.send({
-      users
+      users,
     });
   } catch ({ name, message }) {
     next({ name, message });
   }
 });
 
-usersRouter.post('/login', async (req, res, next) => {
-  const { username, password } = req.body;
+// (works) logs in user IF the username exists AND hashed password matches plain text password via bcrypt.compare
+usersRouter.post("/login", async (req, res, next) => {
+  // const { username, password } = req.body;
 
-  // request must have both
-  if (!username || !password) {
-    next({
-      name: "MissingCredentialsError",
-      message: "Please supply both a username and password"
-    });
-  }
+  // // request must have both
+  // if (!username || !password) {
+  //   next({
+  //     name: "MissingCredentialsError",
+  //     message: "Please supply both a username and password",
+  //   });
+  // }
 
   try {
-    const user = await getUserByUsername(username);
+    res.send(await authenticateLogin(req.body));
+    // const user = await getUserByUsername(username);
+    // // console.log("This password is: ", user.password);
+    // // console.log("Password is: ", password);
 
-    if (user && user.password == password) {
-      const token = jwt.sign({ 
-        id: user.id, 
-        username
-      }, process.env.JWT_SECRET, {
-        expiresIn: '1w'
-      });
+    // if ((await bcrypt.compare(password, user.password)) === true) {
+    //   const token = jwt.sign(
+    //     {
+    //       id: user.id,
+    //       username,
+    //     },
+    //     JWT_SECRET
+    //   );
 
-      res.send({ 
-        message: "you're logged in!",
-        token 
-      });
-    } else {
-      next({ 
-        name: 'IncorrectCredentialsError', 
-        message: 'Username or password is incorrect'
-      });
-    }
-  } catch(error) {
+    //   res.send({
+    //     message: "you're logged in!",
+    //     token,
+    //   });
+    // } else {
+    //   next({
+    //     name: "IncorrectCredentialsError",
+    //     message: "Username or password is incorrect",
+    //   });
+    // }
+  } catch (error) {
     console.log(error);
     next(error);
   }
 });
 
-usersRouter.post('/register', async (req, res, next) => {
-  const { username, password, name, location } = req.body;
+// (works) registers a user, returning the token
 
+// headers for auth in this and login and storing token
+// do tokens need to be stored in the database? e.g. added in createUserGenTOken?
+
+usersRouter.post("/register", async (req, res, next) => {
   try {
-    const _user = await getUserByUsername(username);
-  
-    if (_user) {
-      next({
-        name: 'UserExistsError',
-        message: 'A user by that username already exists'
-      });
-    }
-
-    const user = await createUser({
-      username,
-      password,
-      name,
-      location,
-    });
-
-    const token = jwt.sign({ 
-      id: user.id, 
-      username
-    }, process.env.JWT_SECRET, {
-      expiresIn: '1w'
-    });
-
-    res.send({ 
-      message: "thank you for signing up",
-      token 
-    });
-  } catch ({ name, message }) {
-    next({ name, message });
-  } 
+    res.send(await createUserAndGenerateToken(req.body));
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = usersRouter;
+
+// token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MjQsImlhdCI6MTcxODA0MDE1N30.e1KucMqMGE5pP-5O4gXlEaSxpqFdBCHKzDIPWHIamGM
+// User: Test19, Pass: password
