@@ -3,7 +3,13 @@ const postsRouter = express.Router();
 
 const { requireUser } = require("./utils");
 
-const { createPost, getAllPosts, updatePost, getPostById } = require("../db");
+const {
+  createPost,
+  getAllPosts,
+  updatePost,
+  getPostById,
+  deletePost,
+} = require("../db");
 
 // (works) gets all posts for all users
 postsRouter.get("/", async (req, res, next) => {
@@ -79,8 +85,13 @@ postsRouter.patch("/:postId", requireUser, async (req, res, next) => {
   }
 });
 
+// (works) deletes a post based on postId params; also deletes associated tags in post_tags
 postsRouter.delete("/:postId", requireUser, async (req, res, next) => {
-  res.send({ message: "under construction" });
+  try {
+    res.send(await deletePost(req.params.postId)).sendStatus(204);
+  } catch (error) {
+    next(error);
+  }
 });
 
 module.exports = postsRouter;

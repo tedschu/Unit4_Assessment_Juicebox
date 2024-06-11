@@ -368,6 +368,16 @@ async function getPostsByTagName(tagName) {
   }
 }
 
+// Passes in post ID from params and deletes the post and associated tags in posts_tags table
+async function deletePost(id) {
+  await client.query(`DELETE FROM post_tags WHERE "postId"=$1`, [id]);
+  await client.query(`DELETE FROM posts WHERE id=$1`, [id]);
+
+  return {
+    id: id,
+  };
+}
+
 /**
  * TAG Methods
  */
@@ -474,4 +484,5 @@ module.exports = {
   addTagsToPost,
   findUserWithToken,
   createUserAndGenerateToken,
+  deletePost,
 };
