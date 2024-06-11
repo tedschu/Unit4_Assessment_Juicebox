@@ -30,13 +30,13 @@ usersRouter.get("/", async (req, res, next) => {
 usersRouter.post("/login", async (req, res, next) => {
   // const { username, password } = req.body;
 
-  // // request must have both
-  // if (!username || !password) {
-  //   next({
-  //     name: "MissingCredentialsError",
-  //     message: "Please supply both a username and password",
-  //   });
-  // }
+  //request must have both
+  if (!req.body.username || !req.body.password) {
+    next({
+      name: "MissingCredentialsError",
+      message: "Please supply both a username and password",
+    });
+  }
 
   try {
     res.send(await authenticateLogin(req.body));
