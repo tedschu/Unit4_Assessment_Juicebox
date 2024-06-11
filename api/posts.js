@@ -50,14 +50,16 @@ postsRouter.post("/", requireUser, async (req, res, next) => {
   }
 });
 
+// (works) Updates a post using "patch" which will only replace changed elements
 postsRouter.patch("/:postId", requireUser, async (req, res, next) => {
   const { postId } = req.params;
   const { title, content, tags } = req.body;
 
   const updateFields = {};
 
+  console.log(tags);
   if (tags && tags.length > 0) {
-    updateFields.tags = tags.trim().split(/\s+/);
+    updateFields.tags = tags.map((tag) => tag.trim());
   }
 
   if (title) {
@@ -70,6 +72,9 @@ postsRouter.patch("/:postId", requireUser, async (req, res, next) => {
 
   try {
     const originalPost = await getPostById(postId);
+
+    console.log("postID is: ", postId);
+    console.log("body is: ", req.body);
 
     if (originalPost.author.id === req.user.id) {
       const updatedPost = await updatePost(postId, updateFields);

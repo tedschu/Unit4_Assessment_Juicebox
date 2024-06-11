@@ -1,33 +1,32 @@
-const express = require('express');
+const express = require("express");
 const tagsRouter = express.Router();
 
-const { 
-  getAllTags,
-  getPostsByTagName
-} = require('../db');
+const { getAllTags, getPostsByTagName } = require("../db");
 
-tagsRouter.get('/', async (req, res, next) => {
+// (works) pulls all tags
+tagsRouter.get("/", async (req, res, next) => {
   try {
     const tags = await getAllTags();
-  
+
     res.send({
-      tags
+      tags,
     });
   } catch ({ name, message }) {
     next({ name, message });
   }
 });
 
-tagsRouter.get('/:tagName/posts', async (req, res, next) => {
+// (works) grabs all posts that have a specific tag associated with them
+tagsRouter.get("/:tagName/posts", async (req, res, next) => {
   let { tagName } = req.params;
-  
+
   // decode %23happy to #happy
-  tagName = decodeURIComponent(tagName)
+  tagName = decodeURIComponent(tagName);
 
   try {
     const allPosts = await getPostsByTagName(tagName);
 
-    const posts = allPosts.filter(post => {
+    const posts = allPosts.filter((post) => {
       if (post.active) {
         return true;
       }
@@ -37,7 +36,7 @@ tagsRouter.get('/:tagName/posts', async (req, res, next) => {
       }
 
       return false;
-    })
+    });
 
     res.send({ posts });
   } catch ({ name, message }) {

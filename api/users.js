@@ -40,29 +40,6 @@ usersRouter.post("/login", async (req, res, next) => {
 
   try {
     res.send(await authenticateLogin(req.body));
-    // const user = await getUserByUsername(username);
-    // // console.log("This password is: ", user.password);
-    // // console.log("Password is: ", password);
-
-    // if ((await bcrypt.compare(password, user.password)) === true) {
-    //   const token = jwt.sign(
-    //     {
-    //       id: user.id,
-    //       username,
-    //     },
-    //     JWT_SECRET
-    //   );
-
-    //   res.send({
-    //     message: "you're logged in!",
-    //     token,
-    //   });
-    // } else {
-    //   next({
-    //     name: "IncorrectCredentialsError",
-    //     message: "Username or password is incorrect",
-    //   });
-    // }
   } catch (error) {
     console.log(error);
     next(error);
@@ -70,10 +47,6 @@ usersRouter.post("/login", async (req, res, next) => {
 });
 
 // (works) registers a user, returning the token
-
-// headers for auth in this and login and storing token
-// do tokens need to be stored in the database? e.g. added in createUserGenTOken?
-
 usersRouter.post("/register", async (req, res, next) => {
   try {
     res.send(await createUserAndGenerateToken(req.body));
